@@ -22,12 +22,12 @@ import matplotlib.pyplot as plt
 from scipy.integrate import solve_ivp
 
 """Exercise 1.1"""
-from Exercise_1 import main_exercise1
+from Exercise_1_1 import main_exercise1
 if __name__ == "__main__":
-    main_exercise1()
+    main_exercise1_1()
 
 
 """Exercise 1.2"""
-from Exercise_2 import main_exercise2
+from Exercise_1_2 import main_exercise2
 if __name__ == "__main__":
-    main_exercise2()
+    main_exercise1_2()
