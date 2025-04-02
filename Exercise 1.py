@@ -1,5 +1,23 @@
 
-pip install -r requirements.txt
+import subprocess
+import sys
+
+def install_requirements():
+    try:
+        # 使用subprocess模块运行pip install命令
+        subprocess.check_call([sys.executable, "-m", "pip", "install", "-r", "Requirements.txt"])
+        print("依赖项安装完成。")
+    except subprocess.CalledProcessError as e:
+        print(f"安装依赖项时出错: {e}")
+        sys.exit(1)
+
+install_requirements()
+
+import torch
+import numpy as np
+import scipy
+import matplotlib.pyplot as plt
+from scipy.integrate import solve_ivp
 
 """
     Exercise 1
@@ -170,3 +188,34 @@ class LQRSolver:
             controls[i] = -self.D_inv @ self.M.T @ S_t @ x[i]
         
         return controls
+    
+def main_exercise1():
+    # Define parameters
+    H = torch.tensor([[1.0, 1.0],
+                     [0.0, 1.0]]) * 0.5
+    M = torch.tensor([[1.0, 1.0],
+                    [0.0, 1.0]])
+    sigma = torch.eye(2) * 0.5
+    C = torch.tensor([[1.0, 0.1],
+                     [0.1, 1.0]]) * 1.0
+    D = torch.tensor([[1.0, 0.1],
+                    [0.1, 1.0]]) * 0.1
+    R = torch.tensor([[1.0, 0.3],
+                     [0.3, 1.0]]) * 10.0
+    T = 0.5
+    
+    # Create time grid
+    time_grid = torch.linspace(0, T, 100)
+    
+    # Create an instance of LQR solver
+    lqr_solver = LQRSolver(H, M, sigma, C, D, R, T, time_grid)
+    
+    # Test value function and optimal control
+    test_point_t = torch.tensor([0.0])
+    test_point_x = torch.tensor([[1.0, 1.0]])
+    
+    value = lqr_solver.value_function(test_point_t, test_point_x)
+    control = lqr_solver.optimal_control(test_point_t, test_point_x)
+    
+    print(f"Value function at t=0, x=[1,1]: {value.item()}")
+    print(f"Optimal control at t=0, x=[1,1]: {control.squeeze(0).tolist()}")
