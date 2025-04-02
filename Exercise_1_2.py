@@ -20,7 +20,7 @@ import matplotlib.pyplot as plt
 from scipy.integrate import solve_ivp
 
 """
-    Exercise 2
+    Exercise 1_2
 """
 class LQRMonteCarlo:
     """
@@ -215,7 +215,7 @@ class LQRMonteCarlo:
         return plt
 
 
-def main_exercise2():
+def main_exercise1_2():
     """
     这是Exercise 1.2的示例主函数，可根据需要修改或删除。
     假设你已在lqr_solver.py里定义并实现了LQRSolver。
