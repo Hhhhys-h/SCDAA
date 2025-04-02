@@ -1,364 +1,269 @@
-pip install -r requirements.txt
+
+import subprocess
+import sys
+
+def install_requirements():
+    try:
+        # 使用subprocess模块运行pip install命令
+        subprocess.check_call([sys.executable, "-m", "pip", "install", "-r", "Requirements.txt"])
+        print("依赖项安装完成。")
+    except subprocess.CalledProcessError as e:
+        print(f"安装依赖项时出错: {e}")
+        sys.exit(1)
+
+install_requirements()
+
+import torch
+import numpy as np
+import scipy
+import matplotlib.pyplot as plt
+from scipy.integrate import solve_ivp
 
 """
     Exercise 2
 """
-class LQRSolver:
+class LQRMonteCarlo:
     """
-    线性二次调节器求解器：满足Exercise 1.1要求
+    用蒙特卡洛方法验证LQR求解器的结果: Exercise 1.2
     """
-    def __init__(self, H, M, sigma, C, D, R, T, time_grid=None):
+    def __init__(self, lqr_solver):
         """
-        初始化LQR求解器
+        初始化蒙特卡洛求解器
         
         Args:
-            H, M, sigma, C, D, R: LQR问题的矩阵
-            T: 终止时间
-            time_grid: 时间网格 (numpy array或torch tensor)
+            lqr_solver: LQRSolver实例
         """
-        # 确保所有输入都是torch张量
-        self.H = torch.tensor(H, dtype=torch.float32) if not isinstance(H, torch.Tensor) else H
-        self.M = torch.tensor(M, dtype=torch.float32) if not isinstance(M, torch.Tensor) else M
-        self.sigma = torch.tensor(sigma, dtype=torch.float32) if not isinstance(sigma, torch.Tensor) else sigma
-        self.C = torch.tensor(C, dtype=torch.float32) if not isinstance(C, torch.Tensor) else C
-        self.D = torch.tensor(D, dtype=torch.float32) if not isinstance(D, torch.Tensor) else D
-        self.R = torch.tensor(R, dtype=torch.float32) if not isinstance(R, torch.Tensor) else R
-        self.T = T
-        
-        # 计算D的逆矩阵
-        self.D_inv = torch.inverse(self.D)
-        
-        # 创建或使用时间网格
-        if time_grid is None:
-            self.time_grid = torch.linspace(0, T, 100)
-        else:
-            # 确保time_grid是torch张量
-            self.time_grid = torch.tensor(time_grid, dtype=torch.float32) if not isinstance(time_grid, torch.Tensor) else time_grid
-        
-        # 求解Riccati方程
-        self.S_values = self.solve_riccati_ode()
+        self.lqr_solver = lqr_solver
     
-    def riccati_ode(self, t, S_flat):
-        """定义Riccati ODE"""
-        # 将展平的S重塑为2x2矩阵
-        S = S_flat.reshape(2, 2)
-        
-        # 转换为numpy进行计算
-        S_np = S
-        H_np = self.H.numpy()
-        M_np = self.M.numpy()
-        D_inv_np = np.linalg.inv(self.D.numpy())
-        C_np = self.C.numpy()
-        
-        # 计算Riccati方程的右侧
-        term1 = S_np @ M_np @ D_inv_np @ M_np.T @ S_np
-        term2 = H_np.T @ S_np
-        term3 = S_np @ H_np
-        dSdt = term1 - term2 - term3 - C_np
-        
-        return dSdt.flatten()
-    
-    def solve_riccati_ode(self):
-        """求解Riccati ODE"""
-        # 将时间网格转换为numpy数组
-        t_grid = self.time_grid.numpy()
-        
-        # 终端条件: S(T) = R
-        S_T = self.R.numpy().flatten()
-        
-        # 求解ODE (逆向求解)
-        sol = solve_ivp(
-            self.riccati_ode,
-            [self.T, 0],  # 从T到0逆向求解
-            S_T,
-            t_eval=np.flip(t_grid),  # 按逆序评估
-            method='RK45',
-            rtol=1e-13,
-            atol=1e-15
-        )
-        
-        # 将解转换为torch张量并重塑为矩阵
-        S_values = []
-        for i in range(sol.y.shape[1]):
-            S = sol.y[:, i].reshape(2, 2)
-            S_values.append(torch.tensor(S, dtype=torch.float32))
-        
-        # 反转顺序，使其与时间网格对应
-        return S_values[::-1]
-    
-    def find_nearest_time_index(self, t):
-        """找到最接近t的时间索引"""
-        if t >= self.T:
-            return len(self.time_grid) - 1
-        
-        if t <= 0:
-            return 0
-        
-        # 找到最接近的索引
-        time_array = self.time_grid.numpy()
-        idx = np.searchsorted(time_array, t, side='right') - 1
-        return idx
-    
-    def value_function(self, t, x):
+    def monte_carlo_estimate(self, x0, num_steps, num_samples):
         """
-        计算t时刻在状态x的值函数
+        使用向量化的显式欧拉方法来估计LQR代价的期望值
         
         Args:
-            t: 1D torch张量，表示时间点
-            x: 2D torch张量，表示状态点 (batch_size x 2)
+            x0: 初始状态 (2,) 的torch张量
+            num_steps: 时间步数
+            num_samples: 蒙特卡洛样本数
             
         Returns:
-            1D torch张量，表示值函数
+            估计值(平均成本, float)
         """
-        batch_size = x.shape[0]
-        values = torch.zeros(batch_size)
+        print(f"[Vectorized MC] Starting simulation: num_steps={num_steps}, num_samples={num_samples}")
         
-        for i in range(batch_size):
-            # 找到最接近的时间点
-            t_i = t[i].item()
-            idx = self.find_nearest_time_index(t_i)
-            
-            # 获取对应的S矩阵
-            S_t = self.S_values[idx]
-            
-            # 计算二次型 x^T S x
-            x_i = x[i]
-            values[i] = x_i @ S_t @ x_i
-            
-            # 计算积分项 (如果需要)
-            if idx < len(self.time_grid) - 1:
-                integral_term = 0.0
-                sigma_sigma_T = self.sigma @ self.sigma.T
-                
-                for j in range(idx, len(self.time_grid) - 1):
-                    dt = self.time_grid[j+1] - self.time_grid[j]
-                    S_j = self.S_values[j]
-                    S_j_plus_1 = self.S_values[j+1]
-                    
-                    trace_j = torch.trace(sigma_sigma_T @ S_j)
-                    trace_j_plus_1 = torch.trace(sigma_sigma_T @ S_j_plus_1)
-                    
-                    integral_term += 0.5 * (trace_j + trace_j_plus_1) * dt
-                
-                values[i] += integral_term
+        dt = self.lqr_solver.T / num_steps
+        time_points = torch.linspace(0, self.lqr_solver.T, num_steps + 1)
         
-        return values
+        # 1) 初始化所有样本的状态: shape = [num_samples, 2]
+        states = x0.unsqueeze(0).repeat(num_samples, 1).clone()
+        
+        # 2) 累加每个样本的成本
+        costs = torch.zeros(num_samples)
+        
+        # 3) 预先生成随机增量 dW: shape = [num_steps, num_samples, 2]
+        dW = torch.randn(num_steps, num_samples, 2) * torch.sqrt(torch.tensor(dt))
+        
+        for n in range(num_steps):
+            t_n = time_points[n].item()
+            # 找到与 t_n 最接近的时间索引, 取对应的 S(t)
+            t_idx = self.lqr_solver.find_nearest_time_index(t_n)
+            S_t = self.lqr_solver.S_values[t_idx]  # [2, 2]
+            
+            # a(t,x) = -D^(-1) M^T S(t) x
+            # states shape: [num_samples, 2]
+            # S_t shape: [2,2], M shape: [2,2], D_inv shape: [2,2]
+            a_n = -((states @ S_t) @ self.lqr_solver.M.T) @ self.lqr_solver.D_inv  # [num_samples, 2]
+            
+            # 过程成本: x^T C x + a^T D a
+            cost_x = ((states @ self.lqr_solver.C) * states).sum(dim=1)
+            cost_a = ((a_n    @ self.lqr_solver.D) * a_n   ).sum(dim=1)
+            costs += (cost_x + cost_a) * dt
+            
+            # 显式欧拉更新
+            drift = (states @ self.lqr_solver.H.T) + (a_n @ self.lqr_solver.M.T)
+            # dW[n] shape: [num_samples, 2]
+            # sigma shape: [2,2] => dW[n] @ sigma.T => [num_samples, 2]
+            states = states + dt * drift + (dW[n] @ self.lqr_solver.sigma.T)
+        
+        # 终端成本: X_T^T R X_T
+        cost_term = ((states @ self.lqr_solver.R) * states).sum(dim=1)
+        costs += cost_term
+        
+        # 返回所有样本的平均成本
+        return costs.mean().item()
     
-    def optimal_control(self, t, x):
+    def convergence_study_time_steps(self, x0, num_steps_list, num_samples=10000):
         """
-        计算最优控制
+        研究时间步长的收敛性
         
         Args:
-            t: 1D torch张量，表示时间点
-            x: 2D torch张量，表示状态点 (batch_size x 2)
+            x0: 初始状态 (2,)
+            num_steps_list: 时间步长列表 (如 [2,4,8,...])
+            num_samples: 每个步长的样本数量 (默认10000)
             
         Returns:
-            2D torch张量，表示最优控制 (batch_size x 2)
+            结果字典
         """
-        batch_size = x.shape[0]
-        controls = torch.zeros((batch_size, 2))
+        exact_value = self.lqr_solver.value_function(torch.tensor([0.0]), x0.unsqueeze(0)).item()
+        print(f"Exact value from Riccati solver: {exact_value:.6f}")
         
-        for i in range(batch_size):
-            # 找到最接近的时间点
-            t_i = t[i].item()
-            idx = self.find_nearest_time_index(t_i)
-            
-            # 获取对应的S矩阵
-            S_t = self.S_values[idx]
-            
-            # 计算最优控制: a(t,x) = -D^(-1) M^T S(t) x
-            controls[i] = -self.D_inv @ self.M.T @ S_t @ x[i]
+        estimated_values = []
+        errors = []
         
-        return controls
-
-
-class SoftLQRSolver(LQRSolver):
-    """
-    软线性二次调节器求解器：满足Exercise 2.1要求
-    """
-    def compute_value_constant(self):
+        for N in num_steps_list:
+            print(f"\n[Time steps: {N}] Monte Carlo with {num_samples} samples...")
+            mean_cost = self.monte_carlo_estimate(x0, N, num_samples)
+            err = abs(mean_cost - exact_value)
+            
+            estimated_values.append(mean_cost)
+            errors.append(err)
+            
+            print(f"  -> Estimate: {mean_cost:.6f}, Error: {err:.6f}")
+        
+        return {
+            'num_steps': num_steps_list,
+            'estimated_values': estimated_values,
+            'errors': errors,
+            'exact_value': exact_value
+        }
+    
+    def convergence_study_samples(self, x0, num_samples_list, num_steps=10000):
         """
-        计算 Soft LQR 的值函数常数项 C_{D,τ,γ}，对应文档中公式 (22)：
-        C = -τ ( (m/2)·log(τ) - m·log(γ) + 0.5·log(det(Σ)) )
-        """
-        d = self.D.shape[0]
-        Sigma = torch.inverse(self.D + (self.tau / (2 * self.gamma ** 2)) * torch.eye(d))
-        det_sigma = torch.det(Sigma)
-        C = -self.tau * (0.5 * d * torch.log(torch.tensor(self.tau)) - d * torch.log(torch.tensor(self.gamma)) + 0.5 * torch.log(det_sigma))
-        return C.item()
-
-    def __init__(self, H, M, sigma, C, D, R, T, time_grid=None, tau=0.1, gamma=10.0):
-        """
-        初始化软LQR求解器 - 完全重新实现，不调用父类初始化
+        研究样本数的收敛性
         
         Args:
-            H, M, sigma, C, D, R: LQR问题的矩阵
-            T: 终止时间
-            time_grid: 时间网格 (numpy array或torch tensor)
-            tau: 熵正则化强度
-            gamma: 先验正态分布方差
-        """
-        # 确保所有输入都是torch张量
-        self.H = torch.tensor(H, dtype=torch.float32) if not isinstance(H, torch.Tensor) else H
-        self.M = torch.tensor(M, dtype=torch.float32) if not isinstance(M, torch.Tensor) else M
-        self.sigma = torch.tensor(sigma, dtype=torch.float32) if not isinstance(sigma, torch.Tensor) else sigma
-        self.C = torch.tensor(C, dtype=torch.float32) if not isinstance(C, torch.Tensor) else C
-        self.D = torch.tensor(D, dtype=torch.float32) if not isinstance(D, torch.Tensor) else D
-        self.R = torch.tensor(R, dtype=torch.float32) if not isinstance(R, torch.Tensor) else R
-        self.T = T
-        
-        # 计算D的逆矩阵
-        self.D_inv = torch.inverse(self.D)
-        
-        # 存储软LQR特定参数
-        self.tau = tau
-        self.gamma = gamma
-        
-        # 创建或使用时间网格
-        if time_grid is None:
-            self.time_grid = torch.linspace(0, T, 100)
-        else:
-            # 确保time_grid是torch张量
-            self.time_grid = torch.tensor(time_grid, dtype=torch.float32) if not isinstance(time_grid, torch.Tensor) else time_grid
-        
-        # 求解Riccati方程
-        self.S_values = self.solve_riccati_ode()
-    
-    def riccati_ode(self, t, S_flat):
-        """定义软LQR的Riccati ODE，包含熵正则化项"""
-        # 将展平的S重塑为2x2矩阵
-        S = S_flat.reshape(2, 2)
-        
-        # 转换为numpy进行计算
-        S_np = S
-        H_np = self.H.numpy()
-        M_np = self.M.numpy()
-        C_np = self.C.numpy()
-        sigma_np = self.sigma.numpy()
-
-        Sigma = np.linalg.inv(self.D.numpy() + (self.tau / (2 * self.gamma**2)) * np.eye(2))
-        
-        # 计算标准Riccati方程的右侧
-        term1 = S_np.T @ M_np @ Sigma @ M_np.T @ S
-        term2 = H_np.T @ S
-        term3 = S @ H_np
-
-        # 删除 entropy_term，改用文档中的控制修正项
-        sigma_sigma_T = sigma_np @ sigma_np.T
-                
-        # 总的导数
-        dSdt = term1 - term2 - term3 - C_np
-        
-        return dSdt.flatten()
-    
-    def control_distribution(self, t, x):
-        """
-        计算最优控制分布的参数
-        
-        Args:
-            t: 1D torch张量，表示时间点
-            x: 2D torch张量，表示状态点 (batch_size x 2)
+            x0: 初始状态 (2,)
+            num_samples_list: 样本数列表 (如 [2,8,32,128,...])
+            num_steps: 固定时间步数 (默认10000)
             
         Returns:
-            tuple: (means, covariances)，分别是均值和协方差
+            结果字典
         """
-        batch_size = x.shape[0]
-        means = torch.zeros((batch_size, 2))
-        covariances = []
+        exact_value = self.lqr_solver.value_function(torch.tensor([0.0]), x0.unsqueeze(0)).item()
+        print(f"Exact value from Riccati solver: {exact_value:.6f}")
         
-        for i in range(batch_size):
-            # 找到最接近的时间点
-            t_i = t[i].item()
-            idx = self.find_nearest_time_index(t_i)
-            
-            # 获取对应的S矩阵
-            S_t = self.S_values[idx]
-            
-            # Soft LQR 均值
-            means[i] = -torch.inverse(self.D + (self.tau / (2 * self.gamma ** 2)) * torch.eye(2)) @ self.M.T @ S_t @ x[i]  # Soft LQR 均值
-            
-            # Soft LQR 协方差
-            cov = self.tau * (self.D + (self.tau / (2 * self.gamma ** 2)) * torch.eye(2))  # Soft LQR 协方差
-            covariances.append(cov)
+        estimated_values = []
+        errors = []
         
-        return means, covariances
+        for samples in num_samples_list:
+            print(f"\n[Samples: {samples}] Monte Carlo with {num_steps} time steps...")
+            mean_cost = self.monte_carlo_estimate(x0, num_steps, samples)
+            err = abs(mean_cost - exact_value)
+            
+            estimated_values.append(mean_cost)
+            errors.append(err)
+            
+            print(f"  -> Estimate: {mean_cost:.6f}, Error: {err:.6f}")
+        
+        return {
+            'num_samples': num_samples_list,
+            'estimated_values': estimated_values,
+            'errors': errors,
+            'exact_value': exact_value
+        }
     
-    def sample_control(self, t, x):
+    def plot_convergence_time_steps(self, results):
         """
-        从控制分布中采样具体的控制动作
+        绘制时间步长收敛性图 (log-log)
         
         Args:
-            t: 1D torch张量，表示时间点
-            x: 2D torch张量，表示状态点 (batch_size x 2)
-            
-        Returns:
-            2D torch张量，表示采样的控制动作 (batch_size x 2)
+            results: convergence_study_time_steps的结果
         """
-        means, covariances = self.control_distribution(t, x)
-        batch_size = x.shape[0]
-        samples = torch.zeros((batch_size, 2))
+        plt.figure(figsize=(8, 5))
         
-        for i in range(batch_size):
-            # 将均值和协方差转换为numpy
-            mean_np = means[i].numpy()
-            cov_np = covariances[i].numpy()
-            
-            # 从多元正态分布采样
-            sample = np.random.multivariate_normal(mean_np, cov_np)
-            samples[i] = torch.tensor(sample, dtype=torch.float32)
+        plt.loglog(results['num_steps'], results['errors'], 'o-', label='Error')
         
-        return samples
+        # 添加参考斜率线 O(1/N)
+        if len(results['errors']) > 1:
+            max_error = results['errors'][0]
+            min_step = min(results['num_steps'])
+            max_step = max(results['num_steps'])
+            ref_x = [min_step, max_step]
+            ref_y = [max_error * (min_step / x) for x in ref_x]
+            plt.loglog(ref_x, ref_y, '--', label='Slope -1')
+        
+        plt.xlabel('Number of Time Steps (log scale)')
+        plt.ylabel('Absolute Error (log scale)')
+        plt.title('Convergence w.r.t. Time Steps')
+        plt.grid(True, which='both', ls='--')
+        plt.legend()
+        return plt
+    
+    def plot_convergence_samples(self, results):
+        """
+        绘制样本数收敛性图 (log-log)
+        
+        Args:
+            results: convergence_study_samples的结果
+        """
+        plt.figure(figsize=(8, 5))
+        
+        plt.loglog(results['num_samples'], results['errors'], 'o-', label='Error')
+        
+        # 添加参考斜率线 O(1/sqrt(N))
+        if len(results['errors']) > 1:
+            max_error = results['errors'][0]
+            min_samples = min(results['num_samples'])
+            max_samples = max(results['num_samples'])
+            ref_x = [min_samples, max_samples]
+            ref_y = [max_error * (min_samples / x)**0.5 for x in ref_x]
+            plt.loglog(ref_x, ref_y, '--', label='Slope -1/2')
+        
+        plt.xlabel('Number of Monte Carlo Samples (log scale)')
+        plt.ylabel('Absolute Error (log scale)')
+        plt.title('Convergence w.r.t. Monte Carlo Samples')
+        plt.grid(True, which='both', ls='--')
+        plt.legend()
+        return plt
 
 
-def simulate_trajectory(controller, x0, T, time_grid, use_sampling=True, fixed_brownian=None):
+def main_exercise2():
     """
-    模拟系统轨迹
-    
-    Args:
-        controller: LQRSolver或SoftLQRSolver对象
-        x0: 初始状态向量
-        T: 终止时间
-        time_grid: 时间网格
-        use_sampling: 是否从分布中采样(用于软LQR)
-        fixed_brownian: 预定义的布朗运动(用于比较)
-        
-    Returns:
-        times, states, controls, dW
+    这是Exercise 1.2的示例主函数，可根据需要修改或删除。
+    假设你已在lqr_solver.py里定义并实现了LQRSolver。
     """
-    # 初始化数组
-    n_steps = len(time_grid) - 1
-    states = torch.zeros((len(time_grid), 2))
-    controls = torch.zeros((n_steps, 2))
+    print("Starting LQR Monte Carlo simulation for Exercise 1.2...")
     
-    # 设置初始状态
-    states[0] = x0
+    # 定义问题参数
+    H = torch.tensor([[1.0, 1.0],
+                      [0.0, 1.0]]) * 0.5
+    M = torch.tensor([[1.0, 1.0],
+                      [0.0, 1.0]])
+    sigma = torch.eye(2) * 0.5
+    C = torch.tensor([[1.0, 0.1],
+                      [0.1, 1.0]]) * 1.0
+    D = torch.tensor([[1.0, 0.1],
+                      [0.1, 1.0]]) * 0.1
+    R = torch.tensor([[1.0, 0.3],
+                      [0.3, 1.0]]) * 10.0
+    T = 0.5
     
-    # 计算时间步长
-    dt = (time_grid[1] - time_grid[0]).item()
+    # 创建时间网格
+    time_grid = torch.linspace(0, T, 100)
     
-    # 生成或使用预定义的布朗运动
-    if fixed_brownian is None:
-        # 生成标准布朗运动增量
-        dW = torch.randn(n_steps, controller.sigma.shape[1]) * torch.sqrt(torch.tensor(dt))
-    else:
-        dW = fixed_brownian
+    # 从EX1.1导入的LQRSolver
+    from Exercise_1 import LQRSolver
+    lqr_solver = LQRSolver(H, M, sigma, C, D, R, T, time_grid)
+    mc_simulator = LQRMonteCarlo(lqr_solver)
     
-    # 模拟轨迹
-    for i in range(n_steps):
-        t_i = time_grid[i].reshape(1)
-        x_i = states[i].reshape(1, 2)
-        
-        # 计算控制动作
-        if use_sampling and hasattr(controller, 'sample_control'):
-            a_i = controller.sample_control(t_i, x_i)[0]
-        else:
-            a_i = controller.optimal_control(t_i, x_i)[0]
-        
-        controls[i] = a_i
-        
-        # 更新状态(显式Euler方法)
-        drift = controller.H @ states[i] + controller.M @ a_i
-        diffusion = controller.sigma @ dW[i]
-        states[i+1] = states[i] + drift * dt + diffusion
+    # 测试点
+    x0 = torch.tensor([1.0, 1.0])
+    exact_value = lqr_solver.value_function(torch.tensor([0.0]), x0.unsqueeze(0)).item()
+    print(f"\nExact value at x0={x0.tolist()}: {exact_value:.6f}")
     
-    return time_grid, states, controls, dW
+    # 小规模测试
+    mean_cost = mc_simulator.monte_carlo_estimate(x0, num_steps=100, num_samples=1000)
+    print(f"MC estimate (steps=100, samples=1000): {mean_cost:.6f}")
+    print(f"Error: {abs(mean_cost - exact_value):.6f}")
+    
+    # 时间步数收敛性研究 (例子: 2,4,8,16)
+    num_steps_list = [2**i for i in range(1, 12)]
+    time_steps_results = mc_simulator.convergence_study_time_steps(x0, num_steps_list, num_samples=1000)
+    plt_time = mc_simulator.plot_convergence_time_steps(time_steps_results)
+    plt_time.savefig('convergence_time_steps.png')
+    
+    # 样本数收敛性研究 (例子: 2,8,32)
+    num_samples_list = [2 * 4**i for i in range(0, 6)]
+    samples_results = mc_simulator.convergence_study_samples(x0, num_samples_list, num_steps=100)
+    plt_samp = mc_simulator.plot_convergence_samples(samples_results)
+    plt_samp.savefig('convergence_samples.png')
+    
+    print("\nAll done. Results saved to PNG files.")
