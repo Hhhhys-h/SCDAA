@@ -6,13 +6,13 @@ Function xx is provided for setting T and time grid. The default value for both 
 ```
 T and time grid
 ```
+
+**Exercise 1.2：**
 To run the functions and get the convergence of time steps and Monte Carlo sample, you can copy and run the code below:
 ```
 if __name__ == "__main__":
     main_exercise1_1()
 ```
-
-**Exercise 1.2：**
 
 **Exercise 2.1：**
 
