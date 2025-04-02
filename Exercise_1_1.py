@@ -189,7 +189,7 @@ class LQRSolver:
         
         return controls
     
-def main_exercise1():
+def main_exercise1_1():
     # Define parameters
     H = torch.tensor([[1.0, 1.0],
                      [0.0, 1.0]]) * 0.5
