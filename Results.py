@@ -27,7 +27,7 @@ if __name__ == "__main__":
     main_exercise1()
 
 
-"""Exercise 2"""
+"""Exercise 1.2"""
 from Exercise_2 import main_exercise2
 if __name__ == "__main__":
     main_exercise2()
