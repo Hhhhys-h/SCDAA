@@ -1,7 +1,7 @@
 # SCDAA
-We put the definition of classes and functions in the xx document, to make the process clearer, markdowns are included with some necessary explanations. You can view all details of our code here and check how we work to solve the problems. The graphs and results are shown in the xx document, you can browse the results here or copy the code you want to run separately. To help you better call the code, we will introduce the functions necessary to adjust variables and output results.
+We put the definition of classes and functions in 6 documents, which are named by their corresponding exercise title. Markdowns and some necessary explanations are included to make the process clearer, you can view all details of our code here and check how we work to solve the problems. The graphs and results are shown in the brunch, the code of calling the function for output is placed in the results document, you can browse the functions here and copy the code you want to run separately for a specific answer. To help you better call the code, we will introduce the functions necessary to adjust variables and output results.
 
-**Exercise 1.1：Solving LQR using from Ricatti ODE**
+**Exercise 1.1: Solving LQR using Ricatti ODE**
 
 Function xx is provided for setting T and the time grid. The default value for both T and time grid is 10000, and you can initialise the value here.
 ```
