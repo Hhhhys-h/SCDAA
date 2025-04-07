@@ -40,13 +40,13 @@ from Exercise_3 import main_exercise3
 if __name__ == "__main__":
     main_exercise3()
 
-"""Exercise 4.1"""
-from Exercise_4 import main_exercise4
-if __name__ == "__main__":
-    main_exercise4()
+# """Exercise 4.1"""
+# from Exercise_4 import main_exercise4
+# if __name__ == "__main__":
+#     main_exercise4()
 
-"""Exercise 5.1"""
-from Exercise_5 import main_exercise5
-if __name__ == "__main__":
-    main_exercise5()
+# """Exercise 5.1"""
+# from Exercise_5 import main_exercise5
+# if __name__ == "__main__":
+#     main_exercise5()
 

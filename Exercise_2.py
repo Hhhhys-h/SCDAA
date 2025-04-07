@@ -334,3 +334,6 @@ def main_exercise2():
     ]
 
     compare_trajectories(standard_lqr, soft_lqr, starting_points, T, time_grid)
+
+if __name__ == "__main__":
+    main_exercise2()

@@ -187,3 +187,6 @@ def main_exercise1_1():
 
     print(f"Value function at t=0, x=[1,1]: {value.item()}")
     print(f"Optimal control at t=0, x=[1,1]: {control.squeeze(0).tolist()}")
+
+if __name__ == "__main__":
+    main_exercise1_1()
