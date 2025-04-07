@@ -216,7 +216,8 @@ def plot_error_vs_N(solver, x0, M=10000, N_list=None):
     plt.grid(True, which="both")
     plt.legend()
     plt.tight_layout()
-    plt.savefig(f'Error_vs_Time_Steps_fixed_M_{tuple(x0.tolist())}.png')  # Ensure .png extension is used
+    save_path = f'Exercise_1_2_results/Error_vs_Time_Steps_fixed_M_{tuple(x0.tolist())}.png'
+    plt.savefig(save_path)
     plt.show()
 
 def plot_error_vs_M(solver, x0, N=10000, M_list=None):
@@ -241,7 +242,8 @@ def plot_error_vs_M(solver, x0, N=10000, M_list=None):
     plt.grid(True, which="both")
     plt.legend()
     plt.tight_layout()
-    plt.savefig(f'Error_vs_Sample_Size_fixed_N_{tuple(x0.tolist())}.png')  # Ensure .png extension is used
+    save_path = f'Exercise_1_2_results/Error_vs_Sample_Size_fixed_N_{tuple(x0.tolist())}.png'
+    plt.savefig(save_path)
     plt.show()
 
 def main_exercise1_2():

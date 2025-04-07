@@ -222,6 +222,79 @@ class SoftLQRSolver(LQRSolver):
             covariances.append(cov)
 
         return means, covariances
+    
+    def interpolate_S(self, t):
+        """Linear interpolation to get S(t)"""
+        idx = self.find_nearest_time_index(t)
+        if idx == len(self.time_grid) - 1:
+            return self.S_values[-1]
+        t0 = self.time_grid[idx].item()
+        t1 = self.time_grid[idx + 1].item()
+        S0 = self.S_values[idx]
+        S1 = self.S_values[idx + 1]
+        alpha = (t - t0) / (t1 - t0) if t1 != t0 else 0.0
+        return (1 - alpha) * S0 + alpha * S1
+
+    def integrate_trace_term(self, t_start):
+        """Accurate computation of the integral from t_start to T"""
+        integral = 0.0
+        idx = self.find_nearest_time_index(t_start)
+        # Handle the interval [t_start, t_grid[idx+1]]
+        if idx < len(self.time_grid) - 1:
+            t0 = t_start
+            t1 = self.time_grid[idx + 1].item()
+            S0 = self.interpolate_S(t0)
+            S1 = self.S_values[idx + 1]
+            trace0 = torch.trace(self.sigma @ self.sigma.T @ S0)
+            trace1 = torch.trace(self.sigma @ self.sigma.T @ S1)
+            integral += 0.5 * (trace0 + trace1) * (t1 - t0)
+
+        # Handle the remaining interval [t_grid[idx+1], T]
+        for j in range(idx + 1, len(self.time_grid) - 1):
+            dt = self.time_grid[j + 1] - self.time_grid[j]
+            S_j = self.S_values[j]
+            S_j1 = self.S_values[j + 1]
+            trace_j = torch.trace(self.sigma @ self.sigma.T @ S_j)
+            trace_j1 = torch.trace(self.sigma @ self.sigma.T @ S_j1)
+            integral += 0.5 * (trace_j + trace_j1) * dt.item()
+        
+        return integral
+
+    def compute_value_constant(self):
+        d = self.D.shape[0]
+        Sigma = torch.inverse(self.D + (self.tau / (2 * self.gamma**2)) * torch.eye(d, dtype=self.D.dtype, device=self.D.device))
+        det_sigma = torch.det(Sigma)
+        # Add a determinant lower bound protection (to avoid log(0))
+        det_sigma = torch.clamp(det_sigma, min=1e-10)
+        C = -self.tau * (
+            0.5 * d * torch.log(torch.tensor(self.tau, dtype=self.D.dtype, device=self.D.device)) -
+            d * torch.log(torch.tensor(self.gamma, dtype=self.D.dtype, device=self.D.device)) +
+            0.5 * torch.log(det_sigma)
+        )
+        return C.item()
+
+    def value_function(self, t, x):
+        batch_size = x.shape[0]
+        values = torch.zeros(batch_size)
+        C_const = self.compute_value_constant()
+        sigma_sigma_T = self.sigma @ self.sigma.T
+
+        for i in range(batch_size):
+            t_i = t[i].item()
+            x_i = x[i]
+            S_t = self.interpolate_S(t_i)  # Use interpolated S(t)
+
+            # x^T S(t) x
+            quad_term = x_i @ S_t @ x_i
+
+            # trace(sigma sigma^T S)
+            integral = self.integrate_trace_term(t_i)
+
+            # constant term
+            constant_term = (self.T - t_i) * C_const
+
+            values[i] = quad_term + integral + constant_term
+        return values
 
     def sample_control(self, t, x):
         """
@@ -307,7 +380,8 @@ def compare_trajectories(standard_lqr, soft_lqr, starting_points, T, time_grid):
         plt.ylabel('x2')
         plt.legend()
         plt.grid(True)
-        plt.savefig(f'trajectory_from_{x0[0].item()}_{x0[1].item()}.png')
+        save_path = f'Exercise_2_results/trajectory_from_{x0[0].item()}_{x0[1].item()}.png'
+        plt.savefig(save_path)
         plt.show()
 
     print("\nAll simulations completed!")

@@ -4,21 +4,23 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.integrate import solve_ivp
 
+######V4
 from Exercise_2 import LQRSolver, SoftLQRSolver
 
 class OnlyLinearValueNN(nn.Module):
     def __init__(self, hidden_dim=512, device=torch.device("cpu")):
         super(OnlyLinearValueNN, self).__init__()
+        # Remember the device
         self.device = device
 
-        # Hidden layer for the matrix parameter
+        # Add hidden layer for matrix parameters
         self.matrix_network = nn.Sequential(
             nn.Linear(1, hidden_dim),
             nn.ReLU(),
             nn.Linear(hidden_dim, 2*2)
         ).to(device)
 
-        # Hidden layer for the offset parameter
+        # Add hidden layer for bias parameters
         self.offset_network = nn.Sequential(
             nn.Linear(1, hidden_dim),
             nn.ReLU(),
@@ -27,10 +29,10 @@ class OnlyLinearValueNN(nn.Module):
 
     def forward(self, t):
         """
-        Input: t (batch_size, 1)
+        Input: time t (batch_size, 1)
         Output:
-            - matrix: (batch_size, 2, 2)
-            - offset: (batch_size, 1)
+            - matrix: a matrix of shape (batch_size, 2, 2)
+            - offset: a bias of shape (batch_size, 1)
         """
         matrix_elements = self.matrix_network(t)
         matrix = matrix_elements.view(-1, 2, 2)
@@ -38,20 +40,22 @@ class OnlyLinearValueNN(nn.Module):
         # Ensure the matrix is symmetric positive definite
         matrix = torch.bmm(matrix, matrix.transpose(1, 2)) + 1e-3 * torch.eye(2).to(matrix.device)
 
+        # Calculate the bias
         offset = self.offset_network(t)
+
         return matrix, offset
 
 def evaluate_value(model, t_tensor, x_tensor):
-    """Evaluate v(t, x) = x^T S(t) x + b(t)"""
-    matrix, offset = model(t_tensor)
+    """Calculate the value function v(t, x) = x^T S(t) x + b(t)"""
+    matrix, offset = model(t_tensor)  # Get S(t) and b(t)
     quad_term = torch.einsum('bi,bij,bj->b', x_tensor, matrix, x_tensor)
     return quad_term + offset.view(-1)
 
-# ===== Initial state sampling =====
+# ===== Initial Sampling Function =====
 def sample_x0_uniform(batch_size, low=-2.0, high=2.0):
     return torch.empty(batch_size, 2).uniform_(low, high)
 
-# ===== Simulate trajectory (single) =====
+# ===== Simulate Trajectory Function (Single) =====
 def simulate_trajectory_with_cost(controller, x0, time_grid):
     N = len(time_grid) - 1
     dt = (time_grid[1] - time_grid[0]).item()
@@ -64,13 +68,15 @@ def simulate_trajectory_with_cost(controller, x0, time_grid):
 
     x = x0.clone()
     x_seq[0] = x
+
     dW = torch.randn(N, 2) * np.sqrt(dt)
 
-    for i in range(N):
+    for i in range(N):  # Loop over each time step
         t_i = time_grid[i].reshape(1)
         x_i = x.reshape(1, 2)
 
         a_i = controller.sample_control(t_i, x_i)[0]
+
         a_seq[i] = a_i
 
         drift = controller.H @ x + controller.M @ a_i
@@ -92,7 +98,9 @@ def simulate_trajectory_with_cost(controller, x0, time_grid):
     return t_seq, x_seq, a_seq, cost_seq, log_prob_seq, terminal_cost.item()
 
 def compute_target(costs, log_probs, g_T, dt, tau):
-    """Compute target value for each trajectory (Algorithm 2, Eq.14)"""
+    """
+    Construct the target value for each trajectory according to Algorithm 2's formula (14)
+    """
     N = costs.shape[0]
     cumulative = torch.zeros(N, dtype=costs.dtype, device=costs.device)
     total = 0.0
@@ -102,10 +110,13 @@ def compute_target(costs, log_probs, g_T, dt, tau):
     cumulative += torch.tensor(g_T, dtype=cumulative.dtype, device=cumulative.device)
     return cumulative
 
-# ===== Critic training =====
+# ===== Batch Training of Critic =====
 def train_critic_batch(model, controller, time_grid, tau, n_epochs, batch_size, lr, print_every):
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+
+    # Calculate dt at the beginning of the function
     dt = (time_grid[1] - time_grid[0]).item()
+
     loss_list = []
 
     for epoch in range(n_epochs):
@@ -114,7 +125,8 @@ def train_critic_batch(model, controller, time_grid, tau, n_epochs, batch_size, 
 
         for i in range(batch_size):
             x0 = x0_batch[i]
-            t_seq, x_seq, a_seq, costs, log_probs, g_T = simulate_trajectory_with_cost(controller, x0, time_grid)
+            t_seq, x_seq, a_seq, costs, log_probs, g_T = simulate_trajectory_with_cost(
+                controller, x0, time_grid)
             t_input = t_seq
             x_input = x_seq[:-1]
 
@@ -124,10 +136,11 @@ def train_critic_batch(model, controller, time_grid, tau, n_epochs, batch_size, 
             for n in range(len(t_seq)):
                 loss += (v_pred[n] - target[n].detach()) ** 2
 
-        loss = loss / batch_size
+        # loss = loss / batch_size
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
+
         loss_list.append(loss.item())
 
         if epoch % print_every == 0 or epoch == n_epochs - 1:
@@ -135,7 +148,7 @@ def train_critic_batch(model, controller, time_grid, tau, n_epochs, batch_size, 
 
     return loss_list
 
-# ===== Accuracy evaluation =====
+# ===== Evaluate Accuracy =====
 def evaluate_critic_accuracy(model, solver, time_grid):
     from itertools import product
     time_list = [0.0, 1/6, 2/6, 0.5]
@@ -154,12 +167,12 @@ def evaluate_critic_accuracy(model, solver, time_grid):
     print(f"Overall max error across all t and x: {max_error:.4e}")
 
 def main_exercise3():
-    # === Parameters as specified ===
+    # === Parameter Configuration Required by the Instructor ===
     H = torch.tensor([[1.0, 1.0], [0.0, 1.0]]) * 0.5
     M = torch.tensor([[1.0, 1.0], [0.0, 1.0]])
     sigma = torch.eye(2) * 0.5
     C = torch.tensor([[1.0, 0.1], [0.1, 1.0]])
-    D = torch.eye(2)
+    D = torch.eye(2)  # Assignment requires D = identity
     R = torch.tensor([[1.0, 0.3], [0.3, 1.0]]) * 10.0
 
     T = 0.5
@@ -168,20 +181,20 @@ def main_exercise3():
     N = 100
     time_grid = torch.linspace(0, T, N + 1)
 
-    # === Training hyperparameters ===
-    batch_size = 50
-    n_epochs = 100
+    # Training parameters
+    batch_size = 200
+    n_epochs = 50
     hidden_dim = 512
     lr = 1e-3
     print_every = 10
 
-    # === Initialize Soft LQR controller ===
+    # === Initialize Soft LQR Controller (Fixed Policy π) ===
     soft_lqr = SoftLQRSolver(H, M, sigma, C, D, R, T, tau=tau, gamma=gamma, time_grid=time_grid)
 
-    # === Initialize value network ===
+    # === Initialize Value Network ===
     model = OnlyLinearValueNN(hidden_dim=512)
 
-    # === Train the critic ===
+    # === Train Critic Network ===
     loss_list = train_critic_batch(
         model=model,
         controller=soft_lqr,
@@ -193,22 +206,24 @@ def main_exercise3():
         print_every=print_every
     )
 
-    # === Evaluate the critic ===
+    # === Validate Value Network Error ===
     print("\n=== Evaluate Critic Accuracy ===")
     evaluate_critic_accuracy(model, soft_lqr, time_grid)
 
     plt.figure(figsize=(8, 5))
     plt.plot(range(len(loss_list)), loss_list, label="Critic Loss")
     plt.yscale("log")
+    plt.yticks([1e8, 1e7, 1e6], ['$10^8$', '$10^7$', '$10^6$'])
     plt.xlabel("Epoch")
     plt.ylabel("Loss (log scale)")
     plt.title("Critic Loss Over Epochs")
     plt.grid(True)
+    plt.legend(loc='upper left')
     plt.legend()
-    plt.tight_layout()
-    plt.savefig("Critic Loss Over Epochs")
+    plt.tight_layout
+    save_path = f'Exercise_3_results/Critic_Loss_Over_Epochs.png'
+    plt.savefig(save_path)
     plt.show()
-
 
 if __name__ == "__main__":
     main_exercise3()

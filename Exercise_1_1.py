@@ -157,6 +157,8 @@ class LQRSolver:
 
         return controls
 
+import os
+
 def main_exercise1_1():
     # Define model parameters
     H = torch.tensor([[1.0, 1.0],
@@ -185,8 +187,20 @@ def main_exercise1_1():
     value = lqr_solver.value_function(test_point_t, test_point_x)
     control = lqr_solver.optimal_control(test_point_t, test_point_x)
 
-    print(f"Value function at t=0, x=[1,1]: {value.item()}")
-    print(f"Optimal control at t=0, x=[1,1]: {control.squeeze(0).tolist()}")
+    # Make sure the directory exists, if not, create it
+    output_dir = "Exercise_1_1_results"
+    os.makedirs(output_dir, exist_ok=True)
+
+    # Path for the output text file
+    output_file = os.path.join(output_dir, "results.txt")
+
+    # Open the file in write mode
+    with open(output_file, 'w') as file:
+        # Redirect print statements to the file
+        print(f"Value function at t=0, x=[1,1]: {value.item()}", file=file)
+        print(f"Optimal control at t=0, x=[1,1]: {control.squeeze(0).tolist()}", file=file)
+
+    print("Results have been saved to 'Exercise_1_1_results/results.txt'.")
 
 if __name__ == "__main__":
     main_exercise1_1()
