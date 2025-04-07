@@ -6,7 +6,6 @@ import sys
 
 def install_requirements():
     try:
-        # 使用subprocess模块运行pip install命令
         subprocess.check_call([sys.executable, "-m", "pip", "install", "-r", "Requirements.txt"])
         print("Success")
     except subprocess.CalledProcessError as e:
@@ -22,12 +21,32 @@ import matplotlib.pyplot as plt
 from scipy.integrate import solve_ivp
 
 """Exercise 1.1"""
-from Exercise_1_1 import main_exercise1
+from Exercise_1_1 import main_exercise1_1
 if __name__ == "__main__":
     main_exercise1_1()
 
-
 """Exercise 1.2"""
-from Exercise_1_2 import main_exercise2
+from Exercise_1_2 import main_exercise1_2
 if __name__ == "__main__":
     main_exercise1_2()
+
+"""Exercise 2.1"""
+from Exercise_2 import main_exercise2
+if __name__ == "__main__":
+    main_exercise2()
+
+"""Exercise 3.1"""
+from Exercise_3 import main_exercise3
+if __name__ == "__main__":
+    main_exercise3()
+
+"""Exercise 4.1"""
+from Exercise_4 import main_exercise4
+if __name__ == "__main__":
+    main_exercise4()
+
+"""Exercise 5.1"""
+from Exercise_5 import main_exercise5
+if __name__ == "__main__":
+    main_exercise5()
+
