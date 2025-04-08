@@ -1,6 +1,7 @@
 import subprocess
 import sys
 
+
 def install_requirements():
     try:
         subprocess.check_call([sys.executable, "-m", "pip", "install", "-r", "Requirements.txt"])
@@ -20,6 +21,9 @@ from scipy.integrate import solve_ivp
 """
     Exercise 1.2
 """
+
+torch.manual_seed(60)
+np.random.seed(60)
 
 class LQRSolver:
     """

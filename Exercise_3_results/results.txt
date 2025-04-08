@@ -1,0 +1,4 @@
+[t=0.000] Max error = 3.6394e+02
+[t=0.167] Max error = 3.4181e+02
+[t=0.333] Max error = 3.1971e+02
+[t=0.500] Max error = 1.4498e+02

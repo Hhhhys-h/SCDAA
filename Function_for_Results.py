@@ -45,11 +45,14 @@ if __name__ == "__main__":
 
 if __name__ == "__main__":
     main_exercise3_comparsion()
-    
-# """Exercise 4.1"""
-# from Exercise_4 import main_exercise4
-# if __name__ == "__main__":
-#     main_exercise4()
+
+"""Exercise 4.1"""
+from Exercise_4 import main_exercise4_cost, main_exercise4_loss
+if __name__ == "__main__":
+    main_exercise4_loss()
+
+if __name__ == "__main__":
+    main_exercise4_cost()
 
 # """Exercise 5.1"""
 # from Exercise_5 import main_exercise5

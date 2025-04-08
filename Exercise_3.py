@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 import numpy as np
+import os
 import matplotlib.pyplot as plt
 from scipy.integrate import solve_ivp
 
@@ -164,33 +165,48 @@ def evaluate_critic_accuracy(model, solver, time_grid):
         max_error = max(max_error, torch.max(error).item())
         print(f"[t={t_scalar:.3f}] Max error = {torch.max(error):.4e}")
 
+        # Make sure the directory exists, if not, create it
+        output_dir = "Exercise_1_1_results"
+        os.makedirs(output_dir, exist_ok=True)
+        
+        # Path for the output text file
+        output_file = os.path.join("Exercise_3_results", "results.txt")
+        # Open the file in write mode
+        with open(output_file, 'a') as file:
+        # Redirect print statements to the file
+            print(f"[t={t_scalar:.3f}] Max error = {torch.max(error):.4e}", file=file)
     print(f"Overall max error across all t and x: {max_error:.4e}")
 
-def plot_value_function_1d(model, solver, t_scalar=0.2):
+
+def plot_value_function_1d_multi_t(model, solver, t_list=[0.0, 0.2, 0.5]):
     """
-    Plot the value function against x_1 while keeping t fixed and x_2 = 0
+    Plot the value function under multi t against x_1 while x_2 = 0
     """
     x1_vals = torch.linspace(-3, 3, 200)
     x2_fixed = torch.zeros_like(x1_vals)
     x_grid = torch.stack([x1_vals, x2_fixed], dim=1)
 
-    t_tensor = torch.full((x_grid.shape[0], 1), t_scalar)
+    plt.figure(figsize=(12, 4))
 
-    v_hat = evaluate_value(model, t_tensor, x_grid).detach()
-    v_true = solver.value_function(t_tensor.view(-1), x_grid)
+    for i, t_scalar in enumerate(t_list, 1):
+        t_tensor = torch.full((x_grid.shape[0], 1), t_scalar)
+        v_hat = evaluate_value(model, t_tensor, x_grid).detach()
+        v_true = solver.value_function(t_tensor.view(-1), x_grid)
 
-    plt.figure(figsize=(8, 5))
-    plt.plot(x1_vals.numpy(), v_true.numpy(), label="True $v^*(t, x)$", linewidth=2)
-    plt.plot(x1_vals.numpy(), v_hat.numpy(), label="Predicted $\hat{v}(t, x)$", linestyle='--')
-    plt.xlabel("$x_1$ (with $x_2 = 0$)")
-    plt.ylabel("Value Function")
-    plt.title(f"Value Function Comparison at t = {t_scalar}")
-    plt.grid(True)
-    plt.legend()
-    plt.tight_layout()
-    save_path = f'Exercise_3_results/Value_Function_Comparison_at_t = {t_scalar}.png'
-    plt.savefig(save_path)
-    plt.show()
+        plt.subplot(1, len(t_list), i)
+        plt.plot(x1_vals.numpy(), v_true.numpy(), label="True $v^*$", linewidth=2)
+        plt.plot(x1_vals.numpy(), v_hat.numpy(), label="Predicted $\hat{v}$", linestyle='--')
+        plt.xlabel("$x_1$ (with $x_2 = 0$)")
+        plt.ylabel("Value")
+        plt.title(f"$t = {t_scalar}$")
+        plt.grid(True)
+        plt.legend()
+
+        plt.suptitle("Value Function Comparison at Different Time Steps")
+        plt.tight_layout()
+        save_path = f'Exercise_3_results/Value_Function_Comparison.png'
+        plt.savefig(save_path)
+        plt.show()
 
 
 def main_exercise3_critic_loss():
@@ -292,7 +308,7 @@ def main_exercise3_comparsion():
         print_every=print_every
     )
 
-    plot_value_function_1d(model, soft_lqr, t_scalar=0.2)
+    plot_value_function_1d_multi_t(model, soft_lqr, t_list=[0.0, 0.2, 0.5])
 
 
 if __name__ == "__main__":

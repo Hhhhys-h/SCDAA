@@ -44,11 +44,17 @@ To get the coomparasion on value function, you can select:
 if __name__ == "__main__":
     main_exercise3_comparsion()
 ```
+The value of max error for each time point are shown in the txt document.
 
 **Exercise 4.1：Actor algorithm**
+We plot the accumulated loss of actor algorithm here and the cumulative cost here, you can use the code below to call the function:
 ```
 if __name__ == "__main__":
-    main_exercise1_4()
+    main_exercise4_loss()
+```
+```
+if __name__ == "__main__":
+    main_exercise4_cost()
 ```
 **Exercise 5.1：Actor-critic algorithm**
 ```
