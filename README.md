@@ -33,13 +33,14 @@ if __name__ == "__main__":
 ```
 
 **Exercise 3.1：Critic algorithm**
+
 We plot the critic loss over epochs and compare the value funciton for fixed t and x_2 = 0.
 To get the critic loss, you can run the following code:
 ```
 if __name__ == "__main__":
     main_exercise3_critic_loss()
 ```
-To get the coomparasion on value function, you can select:
+To get the comparasion on value function, you can select:
 ```
 if __name__ == "__main__":
     main_exercise3_comparsion()
