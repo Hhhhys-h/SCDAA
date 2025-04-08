@@ -166,7 +166,34 @@ def evaluate_critic_accuracy(model, solver, time_grid):
 
     print(f"Overall max error across all t and x: {max_error:.4e}")
 
-def main_exercise3():
+def plot_value_function_1d(model, solver, t_scalar=0.2):
+    """
+    Plot the value function against x_1 while keeping t fixed and x_2 = 0
+    """
+    x1_vals = torch.linspace(-3, 3, 200)
+    x2_fixed = torch.zeros_like(x1_vals)
+    x_grid = torch.stack([x1_vals, x2_fixed], dim=1)
+
+    t_tensor = torch.full((x_grid.shape[0], 1), t_scalar)
+
+    v_hat = evaluate_value(model, t_tensor, x_grid).detach()
+    v_true = solver.value_function(t_tensor.view(-1), x_grid)
+
+    plt.figure(figsize=(8, 5))
+    plt.plot(x1_vals.numpy(), v_true.numpy(), label="True $v^*(t, x)$", linewidth=2)
+    plt.plot(x1_vals.numpy(), v_hat.numpy(), label="Predicted $\hat{v}(t, x)$", linestyle='--')
+    plt.xlabel("$x_1$ (with $x_2 = 0$)")
+    plt.ylabel("Value Function")
+    plt.title(f"Value Function Comparison at t = {t_scalar}")
+    plt.grid(True)
+    plt.legend()
+    plt.tight_layout()
+    save_path = f'Exercise_3_results/Value_Function_Comparison_at_t = {t_scalar}.png'
+    plt.savefig(save_path)
+    plt.show()
+
+
+def main_exercise3_critic_loss():
     # === Parameter Configuration Required by the Instructor ===
     H = torch.tensor([[1.0, 1.0], [0.0, 1.0]]) * 0.5
     M = torch.tensor([[1.0, 1.0], [0.0, 1.0]])
@@ -225,5 +252,51 @@ def main_exercise3():
     plt.savefig(save_path)
     plt.show()
 
+def main_exercise3_comparsion():
+    # === Parameter Configuration Required by the Instructor ===
+    H = torch.tensor([[1.0, 1.0], [0.0, 1.0]]) * 0.5
+    M = torch.tensor([[1.0, 1.0], [0.0, 1.0]])
+    sigma = torch.eye(2) * 0.5
+    C = torch.tensor([[1.0, 0.1], [0.1, 1.0]])
+    D = torch.eye(2)  # Assignment requires D = identity
+    R = torch.tensor([[1.0, 0.3], [0.3, 1.0]]) * 10.0
+
+    T = 0.5
+    tau = 0.5
+    gamma = 1.0
+    N = 100
+    time_grid = torch.linspace(0, T, N + 1)
+
+    # Training parameters
+    batch_size = 200
+    n_epochs = 50
+    hidden_dim = 512
+    lr = 1e-3
+    print_every = 10
+
+    # === Initialize Soft LQR Controller (Fixed Policy π) ===
+    soft_lqr = SoftLQRSolver(H, M, sigma, C, D, R, T, tau=tau, gamma=gamma, time_grid=time_grid)
+
+    # === Initialize Value Network ===
+    model = OnlyLinearValueNN(hidden_dim=512)
+
+    # === Train Critic Network ===
+    loss_list = train_critic_batch(
+        model=model,
+        controller=soft_lqr,
+        time_grid=time_grid,
+        tau=tau,
+        n_epochs=n_epochs,
+        batch_size=batch_size,
+        lr=lr,
+        print_every=print_every
+    )
+
+    plot_value_function_1d(model, soft_lqr, t_scalar=0.2)
+
+
 if __name__ == "__main__":
-    main_exercise3()
+    main_exercise3_critic_loss()
+
+if __name__ == "__main__":
+    main_exercise3_comparsion()

@@ -12,11 +12,17 @@ if __name__ == "__main__":
 **Exercise 1.2：LQR MC checks**
 
 To run the functions and get the convergence of time steps and Monte Carlo samples, you can copy and run the code below:
+The initial points are [1,1] and [2,2], the function for initial point [1,1] is:
 ```
 if __name__ == "__main__":
-    main_exercise1_2()
+    main_exercise1_2_initial_1()
 ```
-The initial points are [1,1] and [2,2].
+The function for initial point [2,2] is:
+```
+if __name__ == "__main__":
+    main_exercise1_2_initial_2()
+```
+
 
 **Exercise 2.1：Solving soft LQR**
 
@@ -27,10 +33,16 @@ if __name__ == "__main__":
 ```
 
 **Exercise 3.1：Critic algorithm**
-
+We plot the critic loss over epochs and compare the value funciton for fixed t and x_2 = 0.
+To get the critic loss, you can run the following code:
 ```
 if __name__ == "__main__":
-    main_exercise3()
+    main_exercise3_critic_loss()
+```
+To get the coomparasion on value function, you can select:
+```
+if __name__ == "__main__":
+    main_exercise3_comparsion()
 ```
 
 **Exercise 4.1：Actor algorithm**

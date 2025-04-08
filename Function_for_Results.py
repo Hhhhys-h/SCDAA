@@ -26,9 +26,12 @@ if __name__ == "__main__":
     main_exercise1_1()
 
 """Exercise 1.2"""
-from Exercise_1_2 import main_exercise1_2
+from Exercise_1_2 import main_exercise1_2_initial_1, main_exercise1_2_initial_2
 if __name__ == "__main__":
-    main_exercise1_2()
+    main_exercise1_2_initial_1()
+
+if __name__ == "__main__":
+    main_exercise1_2_initial_2()
 
 """Exercise 2.1"""
 from Exercise_2 import main_exercise2
@@ -36,10 +39,13 @@ if __name__ == "__main__":
     main_exercise2()
 
 """Exercise 3.1"""
-from Exercise_3 import main_exercise3
+from Exercise_3 import main_exercise3_comparsion,main_exercise3_critic_loss
 if __name__ == "__main__":
-    main_exercise3()
+    main_exercise3_critic_loss()
 
+if __name__ == "__main__":
+    main_exercise3_comparsion()
+    
 # """Exercise 4.1"""
 # from Exercise_4 import main_exercise4
 # if __name__ == "__main__":

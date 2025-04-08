@@ -246,7 +246,7 @@ def plot_error_vs_M(solver, x0, N=10000, M_list=None):
     plt.savefig(save_path)
     plt.show()
 
-def main_exercise1_2():
+def main_exercise1_2_initial_1():
     H = torch.tensor([[1.0, 1.0], [0.0, 1.0]]) * 0.5
     M = torch.tensor([[1.0, 1.0], [0.0, 1.0]])
     sigma = torch.eye(2) * 0.5
@@ -261,19 +261,40 @@ def main_exercise1_2():
     # Test points
     test_points = [
         torch.tensor([1.0, 1.0]),
-        torch.tensor([2.0, 2.0]),
     ]
     
     print("\n=== Error: x = (1,1) ===")
-    plot_error_vs_N(solver, torch.tensor([1.0, 1.0]))
+#    plot_error_vs_N(solver, torch.tensor([1.0, 1.0]))
     plot_error_vs_M(solver, torch.tensor([1.0, 1.0]))
 
+    print("End")
+
+def main_exercise1_2_initial_2():
+    H = torch.tensor([[1.0, 1.0], [0.0, 1.0]]) * 0.5
+    M = torch.tensor([[1.0, 1.0], [0.0, 1.0]])
+    sigma = torch.eye(2) * 0.5
+    C = torch.tensor([[1.0, 0.1], [0.1, 1.0]]) * 1.0
+    D = torch.tensor([[1.0, 0.1], [0.1, 1.0]]) * 0.1
+    R = torch.tensor([[1.0, 0.3], [0.3, 1.0]]) * 10.0
+    T = 0.5
+    time_grid = torch.linspace(0, T, 100)
+
+    solver = LQRSolver(H, M, sigma, C, D, R, T, time_grid)
+
+    # Test points
+    test_points = [
+        torch.tensor([2.0, 2.0]),
+    ]
+
     print("\n=== Error: x = (2,2) ===")
-    plot_error_vs_N(solver, torch.tensor([2.0, 2.0]))
+#    plot_error_vs_N(solver, torch.tensor([2.0, 2.0]))
     plot_error_vs_M(solver, torch.tensor([2.0, 2.0]))
 
     print("End")
 
 # Make sure this is executed when running the script
 if __name__ == "__main__":
-    main_exercise1_2()
+    main_exercise1_2_initial_1()
+
+if __name__ == "__main__":
+    main_exercise1_2_initial_2()
