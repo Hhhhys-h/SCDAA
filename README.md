@@ -58,7 +58,8 @@ if __name__ == "__main__":
     main_exercise4_cost()
 ```
 **Exercise 5.1：Actor-critic algorithm**
+We plot the loss of actor loss and critic loss, the code is showing below:
 ```
 if __name__ == "__main__":
-    main_exercise1_5()
+    main_exercise5()
 ```

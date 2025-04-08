@@ -22,9 +22,6 @@ from scipy.integrate import solve_ivp
     Exercise 1.2
 """
 
-torch.manual_seed(60)
-np.random.seed(60)
-
 class LQRSolver:
     """
     Linear Quadratic Regulator (LQR) Solver for Exercise 1.1
@@ -201,7 +198,7 @@ def simulate_lqr(solver, t0, x0, N, M):
 
 def plot_error_vs_N(solver, x0, M=10000, N_list=None):
     if N_list is None:
-        N_list = [2**i for i in range(1, 12)]  # 2 to 2048
+        N_list = [2**i for i in range(1, 12)]
     errors = []
     for N in N_list:
         J_hat = simulate_lqr(solver, 0.0, x0, N, M)
@@ -209,25 +206,22 @@ def plot_error_vs_N(solver, x0, M=10000, N_list=None):
         error = abs(J_hat - v_true)
         errors.append(error)
         print(f"N = {N:<4} | Ĵ: {J_hat:.6f} | v: {v_true:.6f} | Error: {error:.2e}")
-    
+
     plt.figure()
     plt.loglog(N_list, errors, marker='o', label='|Ĵ - v|')
-    ref = errors[0] * np.array(N_list[0]) / np.array(N_list)  # O(1/N)
+    ref = errors[0] * np.array(N_list[0]) / np.array(N_list)
     plt.loglog(N_list, ref, linestyle='--', label='O(1/N) ref')
     plt.xlabel("Time steps N")
     plt.ylabel("Absolute error")
-    plt.title(f'Error vs Time Steps (fixed M) {x0}')
+    plt.title("Error vs Time Steps (fixed M)")
     plt.grid(True, which="both")
     plt.legend()
     plt.tight_layout()
-    save_path = f'Exercise_1_2_results/Error_vs_Time_Steps_fixed_M_{tuple(x0.tolist())}.png'
-    plt.savefig(save_path)
     plt.show()
 
-def plot_error_vs_M(solver, x0, N=10000, M_list=None):
+def plot_error_vs_M(solver, x0, N=10000, M_list=None, save_path=None):
     if M_list is None:
-        M_list = [2 * 4**i for i in range(0,6)]  # 2 to 2048
-        
+        M_list = [2 * 4 ** i for i in range(0, 6)]  # M = 2, 8, ..., 2048
     errors = []
     for M in M_list:
         J_hat = simulate_lqr(solver, 0.0, x0, N, M)
@@ -235,19 +229,19 @@ def plot_error_vs_M(solver, x0, N=10000, M_list=None):
         error = abs(J_hat - v_true)
         errors.append(error)
         print(f"M = {M:<6} | Ĵ: {J_hat:.6f} | v: {v_true:.6f} | Error: {error:.2e}")
-    
+
     plt.figure()
     plt.loglog(M_list, errors, marker='s', label='|Ĵ - v|')
-    ref = errors[0] * np.sqrt(M_list[0]) / np.sqrt(np.array(M_list))  # O(1/sqrt(M))
+    ref = errors[0] * np.sqrt(M_list[0]) / np.sqrt(np.array(M_list))
     plt.loglog(M_list, ref, linestyle='--', label='O(1/√M) ref')
     plt.xlabel("Sample size M")
     plt.ylabel("Absolute error")
-    plt.title(f'Error vs Sample Size (fixed N) {x0}')
+    plt.title(f"Error vs Sample Size @ x = {tuple(x0.tolist())}")
     plt.grid(True, which="both")
     plt.legend()
     plt.tight_layout()
-    save_path = f'Exercise_1_2_results/Error_vs_Sample_Size_fixed_N_{tuple(x0.tolist())}.png'
-    plt.savefig(save_path)
+    if save_path:
+        plt.savefig(save_path)
     plt.show()
 
 def main_exercise1_2_initial_1():
@@ -262,16 +256,13 @@ def main_exercise1_2_initial_1():
 
     solver = LQRSolver(H, M, sigma, C, D, R, T, time_grid)
 
-    # Test points
-    test_points = [
-        torch.tensor([1.0, 1.0]),
-    ]
-    
-    print("\n=== Error: x = (1,1) ===")
-#    plot_error_vs_N(solver, torch.tensor([1.0, 1.0]))
+    print("\n=== Error Plot: x = (1,1) ===")
+    plot_error_vs_N(solver, torch.tensor([1.0, 1.0]))
     plot_error_vs_M(solver, torch.tensor([1.0, 1.0]))
 
-    print("End")
+    plot_error_vs_N(solver, torch.tensor([1.0, 1.0]), save_path="error_vs_N_x_1_1.png")
+    plot_error_vs_M(solver, torch.tensor([1.0, 1.0]), save_path="error_vs_M_x_1_1.png")
+
 
 def main_exercise1_2_initial_2():
     H = torch.tensor([[1.0, 1.0], [0.0, 1.0]]) * 0.5
@@ -285,16 +276,12 @@ def main_exercise1_2_initial_2():
 
     solver = LQRSolver(H, M, sigma, C, D, R, T, time_grid)
 
-    # Test points
-    test_points = [
-        torch.tensor([2.0, 2.0]),
-    ]
-
-    print("\n=== Error: x = (2,2) ===")
-#    plot_error_vs_N(solver, torch.tensor([2.0, 2.0]))
+    print("\n=== Error Plot: x = (2,2) ===")
+    plot_error_vs_N(solver, torch.tensor([2.0, 2.0]))
     plot_error_vs_M(solver, torch.tensor([2.0, 2.0]))
 
-    print("End")
+    plot_error_vs_N(solver, torch.tensor([2.0, 2.0]), save_path="error_vs_N_x_2_2.png")
+    plot_error_vs_M(solver, torch.tensor([2.0, 2.0]), save_path="error_vs_M_x_2_2.png")
 
 # Make sure this is executed when running the script
 if __name__ == "__main__":
@@ -302,3 +289,5 @@ if __name__ == "__main__":
 
 if __name__ == "__main__":
     main_exercise1_2_initial_2()
+
+    print("end")
